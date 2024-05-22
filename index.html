@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Map with Search and Movable Circle Marker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-dmF7KCrMuoWEKcZdrYFv2I56odpVz99ouQ9Xqw5gYr4fMtBmxXowpzORtY5xJ1/97Yt1vH+6rtIgTtzv/g13Wg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+
+        .custom-control {
+            background-color: #fff;
+            box-shadow: 0 1px 7px rgba(0,0,0,0.4);
+            border-radius: 3px;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .custom-control:hover {
+            background-color: #f0f0f0;
+        }
+
+        .custom-control-icon {
+            display: block;
+            padding: 0px;
+            width: 32px; /* Chiều rộng icon */
+            height: 32px; /* Chiều cao icon */
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        // Here Maps API key của bạn
+        var hereApiKey = 'rVUxu053WrBDqs07pYbPtcr8H1yfnwVmpF_t9a4I5vc';
+
+        // Khởi tạo bản đồ với tọa độ trung tâm Bắc Kạn và mức zoom 10
+        var map = L.map('map').setView([22.1456, 105.8333], 10);
+
+        // Lớp bản đồ từ OpenStreetMap
+        var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Lớp bản đồ vệ tinh từ Here Maps
+        var satelliteLayer = L.tileLayer('https://{s}.aerial.maps.ls.hereapi.com/maptile/2.1/maptile/newest/satellite.day/{z}/{x}/{y}/256/png8?apiKey=' + hereApiKey, {
+            attribution: '&copy; <a href="https://here.com">HERE</a>',
+        });
+
+        // Thêm control layer để chuyển đổi giữa các lớp bản đồ
+        L.control.layers({
+            "Street": streetLayer,
+            "Satellite": satelliteLayer
+        }).addTo(map);
+
+        // Thêm Geocoder control vào bản đồ
+        var geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false
+        })
+        .on('markgeocode', function(e) {
+            var bbox = e.geocode.bbox;
+            var center = bbox.getCenter();
+            
+            // Xóa tất cả các marker và hình tròn trước đó
+            map.eachLayer(function(layer) {
+                if (layer instanceof L.Marker || layer instanceof L.Circle) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // Tạo hình tròn có bán kính đủ lớn để bao phủ toàn bộ Bắc Kạn
+            var radius = 20000; // Bán kính 20 km (điều chỉnh cho phù hợp)
+            var circle = L.circle([center.lat, center.lng], {
+                color: 'blue',
+                fillColor: '#30f',
+                fillOpacity: 0.5,
+                radius: radius
+            }).addTo(map);
+
+            // Tạo một marker có thể di chuyển được tại trung tâm của bounding box
+            var marker = L.marker([center.lat, center.lng], {draggable: true}).addTo(map);
+
+            // Di chuyển khung nhìn của bản đồ để bao gồm hình tròn
+            map.setView([center.lat, center.lng], 13);
+
+            // Xử lý sự kiện khi marker được di chuyển
+            marker.on('moveend', function(e) {
+                var newLatLng = e.target.getLatLng();
+                circle.setLatLng(newLatLng); // Di chuyển hình tròn cùng với marker
+            });
+        })
+        .addTo(map);
+
+        // Tạo một custom control (nút) với icon là home
+        var HomeControl = L.Control.extend({
+            options: {
+                position: 'topright' // Vị trí của nút
+            },
+            onAdd: function(map) {
+                var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-control');
+                var link = L.DomUtil.create('img', 'custom-control-icon', container);
+                link.src = 'home-icon.png'; // Đường dẫn icon home
+                link.title = 'Vị trí điểm đến';
+                L.DomEvent.on(link, 'click', L.DomEvent.stop)
+                    .on(link, 'click', function() { // Xử lý sự kiện khi nhấp vào nút
+                        // Tạo marker ở trung tâm bản đồ với icon là home
+                        var homeIcon = L.icon({
+                            iconUrl: 'home-icon.png',
+                            iconSize: [32, 32],
+                            iconAnchor: [16, 16],
+                            popupAnchor: [0, -16]
+                        });
+                        var center = map.getCenter();
+                        var homeMarker = L.marker(center, { icon: homeIcon, draggable: true }).addTo(map);
+                    });
+					
+                return container;
+            }
+        });
+
+        // Thêm custom control vào bản đồ
+        map.addControl(new HomeControl());
+    </script>
+</body>
+</html>
